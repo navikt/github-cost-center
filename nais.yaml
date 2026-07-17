@@ -1,0 +1,47 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: github-cost-dashboard
+  namespace: appsec
+  labels:
+    team: appsec
+spec:
+  image: "{{IMAGE}}"
+  port: 8080
+  ingresses:
+    - https://github-cost-dashboard.ansatt.nav.no
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+    sidecar:
+      enabled: true
+      autoLogin: true
+  gcp:
+    buckets:
+      - name: nav-github-cost-dashboard-appsec  # must be globally unique
+        cascadingDelete: true
+  env:
+    - name: GCS_BUCKET_NAME
+      value: nav-github-cost-dashboard-appsec
+    - name: WHODIS_BASE_URL
+      value: http://whodis.appsec
+    - name: BQ_PROJECT
+      value: appsec-prod-624d
+    - name: GITHUB_ORG
+      value: navikt
+  accessPolicy:
+    outbound:
+      rules:
+        - application: whodis
+          namespace: appsec
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  liveness:
+    path: /health
+  readiness:
+    path: /health

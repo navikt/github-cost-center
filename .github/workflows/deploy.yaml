@@ -1,0 +1,25 @@
+name: Build and deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Build and push image
+        uses: nais/docker-build-push@31c3a7321909bcb20799fdf46153fec721fd9512 # v0
+        id: docker-build-push
+        with:
+          team: appsec
+      - name: Deploy to prod-gcp
+        uses: nais/deploy/actions/deploy@2d18f050f07b6a007864c6a57070ed915d571beb # v2
+        env:
+          CLUSTER: prod-gcp
+          RESOURCE: nais.yaml
+          IMAGE: ${{ steps.docker-build-push.outputs.image }}
