@@ -24,6 +24,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: deploy
+      cancel-in-progress: true
     permissions:
       contents: read
       id-token: write
