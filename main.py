@@ -18,7 +18,12 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
+class NoHealthFilter(logging.Filter):
+    def filter(self, record):
+        return "/health" not in record.getMessage()
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+logging.getLogger("uvicorn.access").addFilter(NoHealthFilter())
 log = logging.getLogger("app")
 
 # ── env ──────────────────────────────────────────────────────────────────────
