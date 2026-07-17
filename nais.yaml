@@ -34,7 +34,6 @@ spec:
     outbound:
       rules:
         - application: whodis
-          namespace: appsec
   resources:
     requests:
       cpu: 100m
