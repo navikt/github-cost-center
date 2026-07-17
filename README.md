@@ -22,7 +22,7 @@ Costs with no repository (Copilot seats, GHEC/GHAS licences) are not a mapping f
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - `bq` CLI from the [gcloud SDK](https://cloud.google.com/sdk/docs/install)
 - Access to whodis (or run it locally on port 8080)
 
@@ -79,7 +79,7 @@ The app will be available at `https://github-cost-dashboard.intern.nav.no` (Wond
 
 ### First run
 
-Visit the app and you will be redirected to the upload page. Upload a billing export CSV. The pipeline runs (~1–2 minutes depending on how many repos need whodis lookups and whether BQ is warm), then redirects to the dashboard.
+Visit the app and you will be redirected to the upload page. Upload a billing export CSV. The pipeline runs in the background — with a full enterprise export this can take **5–15 minutes** (whodis lookups for ~2 000 repos, plus a BigQuery query). The upload form polls for completion and redirects automatically when done.
 
 Subsequent uploads regenerate the dashboard. The **Bruk hurtigbuffer** checkbox skips fresh whodis and BQ calls and uses cached results from the previous run — faster, but may return stale team mappings.
 

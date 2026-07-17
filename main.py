@@ -124,6 +124,10 @@ def run_pipeline(csv_bytes: bytes, use_cache: bool = False) -> str:
 # ── FastAPI ───────────────────────────────────────────────────────────────────
 _pipeline_lock = asyncio.Lock()
 
+# Simple in-memory pipeline status. One pipeline runs at a time.
+_status: dict = {"state": "idle"}   # idle | running | done | error
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("startup — bucket=%s whodis=%s", BUCKET_NAME, WHODIS_BASE)
@@ -173,6 +177,7 @@ UPLOAD_PAGE = """<!DOCTYPE html>
   <div class="sub">Last opp en billing-eksport fra
     <a href="https://github.com/enterprises/nav/billing/usage" target="_blank">
       github.com/enterprises/nav/billing/usage</a>.
+    Prosessering tar typisk <strong>5–15 minutter</strong> — siden oppdateres automatisk når den er ferdig.
   </div>
 
   <label>Eksport-fil (.csv)</label>
@@ -188,13 +193,15 @@ UPLOAD_PAGE = """<!DOCTYPE html>
   </div>
 
   <button id="btn" disabled>Last opp og generer dashboard</button>
+  <progress id="prog" value="0" max="100" style="display:none;width:100%;margin-top:12px;accent-color:var(--c0)"></progress>
   <div class="msg" id="msg"></div>
 </div>
 
 <script>
 const drop=document.getElementById("drop"), fi=document.getElementById("file"),
       fname=document.getElementById("fname"), btn=document.getElementById("btn"),
-      msg=document.getElementById("msg"), cache=document.getElementById("cache");
+      msg=document.getElementById("msg"), cache=document.getElementById("cache"),
+      prog=document.getElementById("prog");
 
 function setFile(f){
   fname.textContent = f ? f.name : "";
@@ -212,29 +219,105 @@ drop.ondrop = e => {
   else { msg.textContent = "Kun .csv-filer støttes."; msg.className="msg err"; }
 };
 
+const STEPS = [
+  "Laster opp fil…",
+  "Grupperer rader per repo og SKU…",
+  "Slår opp team via whodis (dette tar litt tid)…",
+  "Henter teamnavn fra BigQuery…",
+  "Genererer dashboard…",
+  "Ferdig — henter dashboard…",
+];
+let stepIdx = 0, pollTimer = null;
+
+function setMsg(txt, err=false){
+  msg.textContent = txt;
+  msg.className = "msg" + (err ? " err" : "");
+}
+
+function startProgress(){
+  stepIdx = 0;
+  setMsg(STEPS[0]);
+  prog.style.display = "block";
+  prog.value = 0;
+  // cycle through steps every ~20s to indicate life
+  pollTimer = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, STEPS.length - 2);
+    prog.value = Math.round((stepIdx / (STEPS.length - 1)) * 80);
+    setMsg(STEPS[stepIdx]);
+  }, 20000);
+}
+
+function stopProgress(){ clearInterval(pollTimer); pollTimer = null; }
+
+async function pollStatus(){
+  // poll /status every 5s until done or error
+  while(true){
+    await new Promise(r => setTimeout(r, 5000));
+    let st;
+    try { st = await fetch("/status").then(r => r.json()); }
+    catch { continue; }  // transient network blip, keep polling
+
+    if(st.state === "done"){
+      stopProgress();
+      prog.value = 100;
+      setMsg(STEPS[STEPS.length - 1]);
+      await new Promise(r => setTimeout(r, 800));
+      window.location.href = "/";
+      return;
+    }
+    if(st.state === "error"){
+      stopProgress();
+      prog.style.display = "none";
+      setMsg(st.detail || "Noe gikk galt under prosessering.", true);
+      btn.disabled = false;
+      return;
+    }
+    // still running — keep cycling
+  }
+}
+
 btn.onclick = async () => {
   const f = fi._file; if (!f) return;
   btn.disabled = true;
-  msg.className = "msg"; msg.textContent = "Laster opp…";
+  startProgress();
+
   const fd = new FormData();
   fd.append("file", f);
-  try {
-    const r = await fetch("/upload?cache=" + cache.checked, {method:"POST", body:fd});
-    if (r.redirected) { window.location.href = r.url; return; }
-    if (r.ok) { window.location.href = "/"; return; }
-    const j = await r.json().catch(() => ({detail: r.statusText}));
-    msg.textContent = j.detail || "Noe gikk galt.";
-    msg.className = "msg err";
-  } catch(e) {
-    msg.textContent = "Nettverksfeil: " + e.message;
-    msg.className = "msg err";
-  } finally { btn.disabled = false; }
+
+  // fire the upload without awaiting the full response —
+  // the pipeline runs for many minutes and the connection will time out.
+  // we learn the outcome via /status polling instead.
+  fetch("/upload?cache=" + cache.checked, {method:"POST", body:fd})
+    .then(async r => {
+      if(!r.ok){
+        // upload itself failed fast (e.g. wrong file type, 409 busy)
+        stopProgress();
+        prog.style.display = "none";
+        const j = await r.json().catch(() => ({detail: r.statusText}));
+        setMsg(j.detail || "Opplasting feilet.", true);
+        btn.disabled = false;
+      }
+      // if r.ok the pipeline is running — /status polling takes over
+    })
+    .catch(e => {
+      // 504 / network drop mid-pipeline is expected — keep polling
+      // the server is still processing even if the connection dropped
+      console.warn("fetch ended:", e.message, "— continuing to poll /status");
+    });
+
+  pollStatus();
 };
 </script>
 </body>
 </html>"""
 
 app = FastAPI(title="GitHub cost dashboard", lifespan=lifespan)
+
+@app.get("/status")
+def status():
+    """Lightweight poll target for the upload form."""
+    return JSONResponse(_status)
+
 
 @app.get("/upload", response_class=HTMLResponse)
 def upload_page():
