@@ -30,7 +30,7 @@ spec:
     - name: WHODIS_BASE_URL
       value: http://whodis.appsec
     - name: BQ_PROJECT
-      value: appsec-prod-624d
+      value: styring-av-sky-prod-77f0
     - name: GITHUB_ORG
       value: navikt
   accessPolicy:
@@ -39,10 +39,10 @@ spec:
         - application: whodis
   resources:
     requests:
-      cpu: 100m
-      memory: 512Mi
+      cpu: 50m
+      memory: 192Mi
     limits:
-      memory: 1Gi
+      memory: 320Mi
   liveness:
     path: /health
   readiness:
