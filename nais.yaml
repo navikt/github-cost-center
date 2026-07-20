@@ -30,7 +30,7 @@ spec:
     - name: WHODIS_BASE_URL
       value: http://whodis.appsec
     - name: BQ_PROJECT
-      value: styring-av-sky-prod-77f0
+      value: appsec-prod-624d
     - name: GITHUB_ORG
       value: navikt
   accessPolicy:
