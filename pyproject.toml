@@ -3,11 +3,11 @@ name = "github-cost-dashboard"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.140.11",
-    "uvicorn[standard]==0.51.0",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.0",
     "python-multipart==0.0.32",
     "google-cloud-storage==3.13.0",
-    "google-cloud-bigquery==3.42.2",
+    "google-cloud-bigquery==3.42.3",
 ]
 
 [build-system]
