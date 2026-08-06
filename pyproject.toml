@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.141.1",
-    "uvicorn[standard]==0.52.0",
+    "uvicorn[standard]==0.52.1",
     "python-multipart==0.0.32",
     "google-cloud-storage==3.13.0",
     "google-cloud-bigquery==3.42.3",
