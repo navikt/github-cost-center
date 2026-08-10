@@ -6,8 +6,8 @@ dependencies = [
     "fastapi==0.141.1",
     "uvicorn[standard]==0.52.1",
     "python-multipart==0.0.32",
-    "google-cloud-storage==3.13.0",
-    "google-cloud-bigquery==3.42.3",
+    "google-cloud-storage==3.13.1",
+    "google-cloud-bigquery==3.43.0",
 ]
 
 [build-system]
